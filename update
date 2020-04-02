@@ -1,0 +1,116 @@
+#!/bin/bash
+version="1.0.0"
+
+if [ $EUID -ne 0 ]; then
+    echo "Root user is required to execute.."
+    exit 1
+fi
+
+apt-security() {
+    tmp_list=$(mktemp /tmp/update-XXXX)
+    list=/etc/apt/sources.list
+
+    if [ -z $list ]; then
+        return
+    fi
+
+    grep "security" $list | grep -v "src" | cut -d "#" -f 2 | head -n1 > $tmp_list
+
+    apt upgrade -V -o Dir::Etc::SourceList=$tmp_list
+    rm $tmp_list
+}
+
+sources() {
+    unset lists[@]
+    # put source files in array
+    lists=$(find /etc/apt/ -type f -iname *.list -printf "%f\n")
+
+    # fix array
+    i=1
+    for f in ${lists[@]}; do
+        lists[$i]="$f"
+        echo "$i) ${lists[$i]}"
+        ((i++))
+    done
+
+    unset lists[0]
+    lists[$i]="Return Back"
+    echo -e "$i) ${lists[$i]}\n"
+    read -p "Enter source list number [1]: " i
+
+    case ${lists[$i]} in
+        '') echo -e "No source list found.\nMust be number within range."
+            return ;;
+        *sources*) unset lists[$i] ;;
+        "Return Back") return ;;
+    esac
+
+    apt edit-sources ${lists[$i]}
+
+    read -p "Update package repositories now? [Y/n]: "
+    case $REPLY in
+        y|Y|'') apt update -qq ;;
+        *) echo "Repositories not updated" ;;
+    esac
+}
+
+vers() {
+    echo -e "System-Update\nVersion: "$version
+    echo -e "Github page: https://github.com/sianios/system-update"
+}
+
+help() {
+    cat <<EOF
+1) Update
+2) Upgrade
+3) Full-Upgrade
+s) Upgrade security packages
+l) List available Upgrades
+a) Autoremove
+c) Clean
+e) Edit sources list files
+h) View apt history log
+m) Print help menu
+v) Version
+q) Exit
+EOF
+}
+
+welcome() {
+    if [ -z $flag ]; then
+        echo -e "Welcome to Systerm Update Script!\n"
+        flag=1
+    fi
+}
+
+main() {
+    case $1 in
+        1) sudo apt update -qq ;;
+        2) sudo apt upgrade -qq ;;
+        3) sudo apt full-upgrade -qq ;;
+        s) apt-security ;;
+        r) rotation ;;
+        l) apt list --upgradable ;;
+        a) sudo apt autoremove --purge ;;
+        c) sudo apt clean ;;
+        e) sources ;;
+        h) less -N /var/log/apt/history.log ;;
+        m) help ;;
+        v) vers ;;
+        q) exit 0 ;;
+        ?*) echo "Error: $1 option not available, try again..." ;;
+    esac
+}
+
+while true; do
+
+    if [ -z $1 ]; then
+        welcome
+        read -p "Enter option (m - menu): "
+        main $REPLY
+    else
+        main $1
+        break
+    fi
+
+done
