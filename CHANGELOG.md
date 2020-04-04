@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.1] - 4/4/2020
+### Added
+- apt -V option added in upgrade options.
+
 ## [1.0.0] - 3/4/2020
 Script gets its own repository.
 ### Added
@@ -22,3 +26,4 @@ Script gets its own repository.
 - Deboprhan and Aptitude script functions.
 
 [1.0.0]: https://github.com/sianios/system-update/tree/v1.0.0
+[1.0.1]: https://github.com/sianios/system-update/tree/v1.0.1

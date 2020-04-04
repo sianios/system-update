@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.0.0"
+version="1.0.1"
 
 if [ $EUID -ne 0 ]; then
     echo "Root user is required to execute.."
@@ -86,10 +86,9 @@ welcome() {
 main() {
     case $1 in
         1) sudo apt update -qq ;;
-        2) sudo apt upgrade -qq ;;
-        3) sudo apt full-upgrade -qq ;;
+        2) sudo apt upgrade -V -qq ;;
+        3) sudo apt full-upgrade -V -qq ;;
         s) apt-security ;;
-        r) rotation ;;
         l) apt list --upgradable ;;
         a) sudo apt autoremove --purge ;;
         c) sudo apt clean ;;
