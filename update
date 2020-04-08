@@ -1,8 +1,8 @@
 #!/bin/bash
-version="1.0.1"
+version="1.1.0"
 
 if [ $EUID -ne 0 ]; then
-    echo "Root user is required to execute.."
+    echo "Error: Root user is required to execute.."
     exit 1
 fi
 
@@ -21,31 +21,47 @@ apt-security() {
 }
 
 sources() {
-    unset lists[@]
-    # put source files in array
-    lists=$(find /etc/apt/ -type f -iname *.list -printf "%f\n")
+    # if no filename given
+    if [ -z $1 ]; then
+        # create array with all available files
+        lists=$(find /etc/apt/ -type f -iname *.list -printf "%f\n")
 
-    # fix array
-    i=1
-    for f in ${lists[@]}; do
-        lists[$i]="$f"
-        echo "$i) ${lists[$i]}"
-        ((i++))
-    done
+        # fix lists in array and print them
+        i=1
+        for f in ${lists[@]}; do
+            lists[$i]="$f"
+            echo "$i) ${lists[$i]}"
+            ((i++))
+        done
 
-    unset lists[0]
-    lists[$i]="Return Back"
-    echo -e "$i) ${lists[$i]}\n"
-    read -p "Enter source list number [1]: " i
+        # Empty current list so everytime list is fresh and 0 is invalid
+        unset lists[0]
+        lists[$i]="Return Back"
+        echo -e "$i) ${lists[$i]}\n"
+        read -p "Enter source list number [1]: " i
 
-    case ${lists[$i]} in
-        '') echo -e "No source list found.\nMust be number within range."
-            return ;;
-        *sources*) unset lists[$i] ;;
-        "Return Back") return ;;
-    esac
+        case ${lists[$i]} in
+            '') echo -e "Error: No source list found. Must be number within range."
+                return ;;
+            "Return Back") return ;;
+        esac
 
-    apt edit-sources ${lists[$i]}
+        # Set list name to edit
+        list="${lists[$i]}"
+
+    # in case filename is given check if file exists
+    elif [[ -f $(find /etc/apt/ -type f -iname $1) ]]; then
+        list=$1
+    else
+        echo -e "Error: $1 file not found, try again..."
+        return
+    fi
+
+    # apt tries to create new file in case of sources.list
+    if [ $list == "sources.list" ]; then
+        unset list
+    fi
+    apt edit-sources $list
 
     read -p "Update package repositories now? [Y/n]: "
     case $REPLY in
@@ -92,7 +108,7 @@ main() {
         l) apt list --upgradable ;;
         a) apt autoremove --purge ;;
         c) apt clean ;;
-        e) sources ;;
+        e) sources $2 ;;
         h) less -N /var/log/apt/history.log ;;
         m) help ;;
         v) vers ;;
@@ -108,7 +124,7 @@ while true; do
         read -p "Enter option (m - menu): "
         main $REPLY
     else
-        main $1
+        main ${1//-} $2
         break
     fi
 

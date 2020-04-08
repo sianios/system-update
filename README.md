@@ -3,11 +3,11 @@ A script developed in **bash** to semi automate the packages upgrade
 procedure and cleanup on Debian based distributions for lazy users.
 
 ## Install:
-Right now at the stage this small project is install script is not
-needed. Can be installed by running the following command.
+Run the following commands in your terminal to download using git and run
+a simple script to ensure installation was successful.
 ```
 git clone https://github.com/sianios/system-update /tmp/system-update && \
-sudo cp /tmp/system-update/update /usr/sbin/
+sudo bash /tmp/system-update/install
 ```
 
 ## Changelog:

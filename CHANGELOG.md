@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.0] - 8/4/2020
+### Added
+- Simple install script to ensure successful install.
+- Bash completion if running directly from terminal.
+- Edit sources list files directly from terminal. Select option (-e) and
+  press [tab] to see available files thanks to bash completion.
+
+  Example: ```# update e docker.list```
+
 ## [1.0.1] - 4/4/2020
 ### Added
 - apt -V option added in upgrade options.
@@ -25,5 +34,6 @@ Script gets its own repository.
 ### Removed
 - Deboprhan and Aptitude script functions.
 
-[1.0.0]: https://github.com/sianios/system-update/tree/v1.0.0
+[1.1.0]: https://github.com/sianios/system-update/tree/v1.1.0
 [1.0.1]: https://github.com/sianios/system-update/tree/v1.0.1
+[1.0.0]: https://github.com/sianios/system-update/tree/v1.0.0

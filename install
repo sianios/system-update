@@ -1,0 +1,24 @@
+#!/bin/bash
+
+if [ $EUID -ne 0 ]; then
+    echo "Error: Only root can install..."
+    exit 1
+fi
+
+git_dir=/tmp/system-update
+
+if [ ! -d $git_dir ]; then
+    echo "Error: No source directory found..."
+    exit 1
+fi
+
+# Clear any previous installations
+rm /usr/sbin/update
+rm /etc/bash_completion.d/update_completion
+
+# Begin install
+cp $git_dir/update /usr/bin/update
+cp $git_dir/update_completion /etc/bash_completion.d/update_completion
+
+echo "Install completed."
+echo -e "For script auto completion run command bellow:\nsource /etc/bash_completion.d/update_completion"
