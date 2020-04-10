@@ -1,24 +1,78 @@
 #!/bin/bash
 
 if [ $EUID -ne 0 ]; then
-    echo "Error: Only root can install..."
-    exit 1
+    error_ "Error: Only root can install..."
 fi
 
-git_dir=/tmp/system-update
-
-if [ ! -d $git_dir ]; then
-    echo "Error: No source directory found..."
+#red
+error_() {
+    echo $(tput setaf 1)$@$(tput sgr0)
     exit 1
-fi
+}
+#green
+info_() {
+    echo -e $(tput setaf 2)$@$(tput sgr0)
+}
+#blue
+info2_() {
+    echo -e $(tput setaf 5)$@$(tput sgr0)
+}
 
-# Clear any previous installations
-rm /usr/sbin/update
-rm /etc/bash_completion.d/update_completion
+# check if already is installed
+check_() {
+    if [[ $local_version = $version ]]; then
+        info_ "System Update script already at the latest version!"
+        exit 0
+    elif [[ $local_version > $version ]]; then
+        error_ "Error: You attempted to install older script version!"
+    elif [[ $local_version < $version ]]; then
+        info2_ "Installing System Update script."
+    fi
+}
 
-# Begin install
-cp $git_dir/update /usr/bin/update
-cp $git_dir/update_completion /etc/bash_completion.d/update_completion
+# copy files to destination directories
+install_() {
+    # Clear any previous versions
+    rm $script
+    rm $script_comp
+    # Begin install
+    cp $src_dir/update $script || error_ "Unable to install update script file."
+    cp $src_dir/update_completion $script_comp || error_ "Unable to install update bash completion file."
+}
 
-echo "Install completed."
-echo -e "For script auto completion run command bellow:\nsource /etc/bash_completion.d/update_completion"
+main() {
+    info2_ "Checking for newer version online."
+
+    version=$(git ls-remote --tags $repo \
+        | \grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
+        | tr -d "v" | tail -n1)
+
+    local_version=$(grep version= $script | cut -d '"' -f2)
+
+    #check if installed and version
+    check_
+
+    src_dir=/tmp/system-update
+    if [ -f $src_dir/update ]; then
+        local_version=$(grep -s version= $src_dir/update | cut -d '"' -f2)
+    fi
+
+    if [[ $local_version = $version ]]; then
+        install_
+    else
+        src_dir=$(mktemp -d /tmp/update-XXXX)
+        info_ "Downloading System Update script!"
+        git clone -q $repo $src_dir
+        install_
+        rm -r $src_dir
+    fi
+
+    info_ "\nInstall completed: System Update script v$version\n"
+    info_ "For script auto completion run command bellow:\nsource /etc/bash_completion.d/update_completion"
+}
+
+script=/usr/sbin/update
+script_comp=/etc/bash_completion.d/update_completion
+repo=https://github.com/sianios/system-update.git
+
+main

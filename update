@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.1.0"
+version="1.1.1"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
@@ -14,7 +14,7 @@ apt-security() {
         return
     fi
 
-    grep "security" $list | grep -v "src" | cut -d "#" -f 2 | head -n1 > $tmp_list
+    grep "security" $list | grep -v "src" | cut -d "#" -f 2 > $tmp_list
 
     apt upgrade -V -o Dir::Etc::SourceList=$tmp_list
     rm $tmp_list
@@ -23,19 +23,14 @@ apt-security() {
 sources() {
     # if no filename given
     if [ -z $1 ]; then
-        # create array with all available files
-        lists=$(find /etc/apt/ -type f -iname *.list -printf "%f\n")
-
-        # fix lists in array and print them
+        # print list of sources list files
         i=1
-        for f in ${lists[@]}; do
-            lists[$i]="$f"
-            echo "$i) ${lists[$i]}"
+        for f in $(find /etc/apt/ -type f -iname *.list -printf "%f\n"); do
+            local lists[$i]="$f"
+            echo "$i) $f"
             ((i++))
         done
 
-        # Empty current list so everytime list is fresh and 0 is invalid
-        unset lists[0]
         lists[$i]="Return Back"
         echo -e "$i) ${lists[$i]}\n"
         read -p "Enter source list number [1]: " i
