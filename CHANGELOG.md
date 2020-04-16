@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.1.2] -
+## [1.1.2] - 16/4/2020
 ### Added
 - Install script checks for script requirements.
 ### Fixed
