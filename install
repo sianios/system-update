@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ $EUID -ne 0 ]; then
-    error_ "Error: Only root can install..."
-fi
-
 #red
 error_() {
     echo $(tput setaf 1)$@$(tput sgr0)
@@ -13,20 +9,32 @@ error_() {
 info_() {
     echo -e $(tput setaf 2)$@$(tput sgr0)
 }
-#blue
+#purple
 info2_() {
     echo -e $(tput setaf 5)$@$(tput sgr0)
 }
 
+if [ $EUID -ne 0 ]; then
+    error_ "Error: Only root can install..."
+fi
+
 # check if already is installed
 check_() {
     if [[ $local_version = $version ]]; then
-        info_ "System Update script already at the latest version!"
+        info2_ "System Update script already at the latest version!"
         exit 0
     elif [[ $local_version > $version ]]; then
         error_ "Error: You attempted to install older script version!"
     elif [[ $local_version < $version ]]; then
         info2_ "Installing System Update script."
+    fi
+}
+
+git_check() {
+    if [[ -z $(dpkg -l | awk '{print $2}' | grep -x git) ]]; then
+        info2_ "Installing git."
+        apt update -qq
+        apt install -y -qq git
     fi
 }
 
@@ -43,6 +51,7 @@ install_() {
 main() {
     info2_ "Checking for newer version online."
 
+    # get the latest tag release which act as version
     version=$(git ls-remote --tags $repo \
         | \grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
         | tr -d "v" | tail -n1)
@@ -75,4 +84,5 @@ script=/usr/sbin/update
 script_comp=/etc/bash_completion.d/update_completion
 repo=https://github.com/sianios/system-update.git
 
+git_check
 main

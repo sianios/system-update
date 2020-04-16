@@ -5,9 +5,9 @@ _update () {
 	#local prev2=${COMP_WORDS[COMP_CWORD-2]}
     local opts="1 2 3 -s -l -a -c -e -h -m -v"
 
-
     case "$prev" in
         update) COMPREPLY=( $(compgen -W '${opts}' -- $cur) )
+            return 0
             ;;
         -e) COMPREPLY=( $(compgen -W '$(find /etc/apt/ -type f -iname *.list -printf "%f\n")' -- $cur) )
             return 0

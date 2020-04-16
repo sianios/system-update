@@ -1,10 +1,24 @@
 #!/bin/bash
-version="1.1.1"
+version="1.1.2"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
     exit 1
 fi
+
+# color functions
+#red
+error_() {
+    echo $(tput setaf 1)$@$(tput sgr0)
+}
+#green
+info_() {
+    echo -e $(tput setaf 2)$@$(tput sgr0)
+}
+#yellow
+warning_() {
+    echo $(tput setaf 3)$@$(tput sgr0)
+}
 
 apt-security() {
     tmp_list=$(mktemp /tmp/update-XXXX)
@@ -36,7 +50,7 @@ sources() {
         read -p "Enter source list number [1]: " i
 
         case ${lists[$i]} in
-            '') echo -e "Error: No source list found. Must be number within range."
+            '') error_ "Error: No source list found. Must be number within range."
                 return ;;
             "Return Back") return ;;
         esac
@@ -48,7 +62,7 @@ sources() {
     elif [[ -f $(find /etc/apt/ -type f -iname $1) ]]; then
         list=$1
     else
-        echo -e "Error: $1 file not found, try again..."
+        error_ "Error: $1 file not found, try again..."
         return
     fi
 
@@ -61,35 +75,38 @@ sources() {
     read -p "Update package repositories now? [Y/n]: "
     case $REPLY in
         y|Y|'') apt update -qq ;;
-        *) echo "Repositories not updated" ;;
+        *) warning_ "Warning: Repositories not updated." ;;
     esac
 }
 
 vers() {
-    echo -e "System-Update\nVersion: "$version
-    echo -e "Github page: https://github.com/sianios/system-update"
+    info_ "System-Update\nVersion: "$version
+    info_ "Github page: https://github.com/sianios/system-update"
 }
 
 help() {
-    cat <<EOF
-1) Update
-2) Upgrade
-3) Full-Upgrade
-s) Upgrade security packages
-l) List available Upgrades
-a) Autoremove
-c) Clean
-e) Edit sources list files
-h) View apt history log
-m) Print help menu
-v) Version
-q) Exit
+cat <<EOF
+    Usage: update [option]
+
+    Options:
+    1   Update local repositories
+    2   Install available packages upgrades
+    3   Full-Upgrade install packages held back
+    s   Upgrade only security packages
+    l   List available packages upgrades
+    a   Autoremove useless packages
+    c   Clean localy store packages
+    e   Edit repositorie sources list files
+    h   View your apt history log
+    m   Print this help menu
+    v   Print version
+    q   Exit running script
 EOF
 }
 
 welcome() {
     if [ -z $flag ]; then
-        echo -e "Welcome to Systerm Update Script!\n"
+        info_ "Welcome to Systerm Update Script!\n"
         flag=1
     fi
 }
@@ -108,19 +125,19 @@ main() {
         m) help ;;
         v) vers ;;
         q) exit 0 ;;
-        ?*) echo "Error: $1 option not available, try again..." ;;
+        ?*) error_ "Error: $1 option not available, try again..." ;;
     esac
 }
 
 while true; do
 
-    if [ -z $1 ]; then
-        welcome
-        read -p "Enter option (m - menu): "
-        main $REPLY
-    else
+    if [ ! -z $1 ]; then
         main ${1//-} $2
         break
     fi
+
+    welcome
+    read -p "Enter option (m - menu): "
+    main $REPLY
 
 done

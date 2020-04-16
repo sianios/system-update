@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.2] -
+### Added
+- Install script checks for script requirements.
+### Fixed
+- Install script now exit if not root.
+### Changed
+- Help menu structure.
+- Messages to user are colored now.
+### Removed
+- Removed some useless extra lines of code.
+
 ## [1.1.1] - 10/4/2020
 ### Fixed
 - Select all security repositories instead of first.
@@ -40,6 +51,7 @@ Script gets its own repository.
 ### Removed
 - Deboprhan and Aptitude script functions.
 
+[1.1.2]: https://github.com/sianios/system-update/tree/v1.1.2
 [1.1.1]: https://github.com/sianios/system-update/tree/v1.1.1
 [1.1.0]: https://github.com/sianios/system-update/tree/v1.1.0
 [1.0.1]: https://github.com/sianios/system-update/tree/v1.0.1
