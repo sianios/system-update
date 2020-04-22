@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.1.2"
+version="1.1.3"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
@@ -21,10 +21,10 @@ warning_() {
 }
 
 apt-security() {
-    tmp_list=$(mktemp /tmp/update-XXXX)
-    list=/etc/apt/sources.list
+    local tmp_list=$(mktemp /tmp/update-XXXX)
+    local list=/etc/apt/sources.list
 
-    if [ -z $list ]; then
+    if [ ! -f $list ]; then
         return
     fi
 
@@ -38,7 +38,7 @@ sources() {
     # if no filename given
     if [ -z $1 ]; then
         # print list of sources list files
-        i=1
+        local i=1
         for f in $(find /etc/apt/ -type f -iname *.list -printf "%f\n"); do
             local lists[$i]="$f"
             echo "$i) $f"
@@ -46,7 +46,7 @@ sources() {
         done
 
         lists[$i]="Return Back"
-        echo -e "$i) ${lists[$i]}\n"
+        echo -e "\n$i) ${lists[$i]}\n"
         read -p "Enter source list number [1]: " i
 
         case ${lists[$i]} in
@@ -56,11 +56,11 @@ sources() {
         esac
 
         # Set list name to edit
-        list="${lists[$i]}"
+        local list="${lists[$i]}"
 
     # in case filename is given check if file exists
     elif [[ -f $(find /etc/apt/ -type f -iname $1) ]]; then
-        list=$1
+        local list=$1
     else
         error_ "Error: $1 file not found, try again..."
         return

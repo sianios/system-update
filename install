@@ -3,13 +3,12 @@
 #red
 error_() {
     echo $(tput setaf 1)$@$(tput sgr0)
-    exit 1
 }
-#green
+#green, system related
 info_() {
     echo -e $(tput setaf 2)$@$(tput sgr0)
 }
-#purple
+#purple, script related
 info2_() {
     echo -e $(tput setaf 5)$@$(tput sgr0)
 }
@@ -18,71 +17,72 @@ if [ $EUID -ne 0 ]; then
     error_ "Error: Only root can install..."
 fi
 
-# check if already is installed
-check_() {
-    if [[ $local_version = $version ]]; then
-        info2_ "System Update script already at the latest version!"
-        exit 0
-    elif [[ $local_version > $version ]]; then
-        error_ "Error: You attempted to install older script version!"
-    elif [[ $local_version < $version ]]; then
-        info2_ "Installing System Update script."
-    fi
-}
+script=/usr/sbin/update
+script_comp=/etc/bash_completion.d/update_completion
+repo=https://github.com/sianios/system-update.git
 
-git_check() {
+# Check if git is installed or install
+check_git() {
     if [[ -z $(dpkg -l | awk '{print $2}' | grep -x git) ]]; then
-        info2_ "Installing git."
+        info_ "Installing git."
         apt update -qq
         apt install -y -qq git
     fi
 }
 
-# copy files to destination directories
+# Check for newer version online using git
+check_version() {
+    info2_ "Checking for newer version online."
+
+    # Get the latest version online
+    local online_version=$(git ls-remote --tags $repo \
+    | grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
+    | tr -d "v" | tail -n1)
+
+    local local_version=$(grep version= $script | cut -d '"' -f2)
+
+    if [[ $local_version = $online_version ]]; then
+        info2_ "System Update script already at the latest version!"
+        return 1
+    elif [[ $local_version > $online_version ]]; then
+        error_ "Error: You attempted to install older script version!"
+        return 1
+    elif [[ $local_version < $online_version ]]; then
+        info2_ "Installing/Upgrading System Update script."
+        return 0
+    fi
+}
+
 install_() {
-    # Clear any previous versions
+    local src_dir=/tmp/system-update
+
+    if [ -d $src_dir ]; then
+        cd $src_dir
+        git pull -q
+    else
+        local src_dir=$(mktemp -d /tmp/system-updateXXXX)
+        info2_ "Downloading System Update script!"
+        git clone -q $repo $src_dir || error_ "Unable to clone repository."
+    fi
+
+    # Clean any previous versions
     rm $script
     rm $script_comp
-    # Begin install
-    cp $src_dir/update $script || error_ "Unable to install update script file."
-    cp $src_dir/update_completion $script_comp || error_ "Unable to install update bash completion file."
+    # Copy new files
+    cp $src_dir/update $script || error_ "Unable to install System Update script"
+    cp $src_dir/update_completion $script_comp || error_ "Unable to install System Update script bash completion file."
+
+    info2_ "\nInstall completed!"
+    info2_ "To enable System Update script auto completion execute:\nsource /etc/bash_completion.d/update_completion"
 }
 
 main() {
-    info2_ "Checking for newer version online."
-
-    # get the latest tag release which act as version
-    version=$(git ls-remote --tags $repo \
-        | \grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
-        | tr -d "v" | tail -n1)
-
-    local_version=$(grep version= $script | cut -d '"' -f2)
-
-    #check if installed and version
-    check_
-
-    src_dir=/tmp/system-update
-    if [ -f $src_dir/update ]; then
-        local_version=$(grep -s version= $src_dir/update | cut -d '"' -f2)
-    fi
-
-    if [[ $local_version = $version ]]; then
+    check_git
+    check_version
+    local ver=$?
+    if [ "$ver" -eq 0 ]; then
         install_
-    else
-        src_dir=$(mktemp -d /tmp/update-XXXX)
-        info_ "Downloading System Update script!"
-        git clone -q $repo $src_dir
-        install_
-        rm -r $src_dir
     fi
-
-    info_ "\nInstall completed: System Update script v$version\n"
-    info_ "For script auto completion run command bellow:\nsource /etc/bash_completion.d/update_completion"
 }
 
-script=/usr/sbin/update
-script_comp=/etc/bash_completion.d/update_completion
-repo=https://github.com/sianios/system-update.git
-
-git_check
 main
