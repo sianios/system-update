@@ -17,7 +17,7 @@ sudo bash /tmp/system-update/install
 ### Option 2: Using wget
 **wget** is installed by default in almost every distribution.
 ```
-$ wget --quiet -O install https://raw.githubusercontent.com/sianios/system-update/master/install && \
+$ wget --quiet -O install https://git.io/JfO2z && \
 sudo bash install
 ```
 ### Autocomplete:
@@ -66,6 +66,10 @@ Remove no longer required package dependencies from your system.
 **c) Clean**
 
 Remove localy retrieved package files.
+
+**f) Find fastest mirror**
+
+Search and update sources.list with the fastest mirror.
 
 **e) Edit sources list files**
 

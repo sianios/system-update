@@ -4,7 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.4] - 13/5/2020
+### Added
+- New script option to find the fastest mirror using netselect-apt.
+- New script execution command: up
+  Example: ```# up```
+### Changed
+- Install script checks for multiple dependencies.
+
 ## [1.1.3] - 22/4/2020
+### Fixed
 - Install script reviewed and parts rewritten.
 
 ## [1.1.2] - 16/4/2020
@@ -21,7 +30,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.1.1] - 10/4/2020
 ### Fixed
 - Select all security repositories instead of first.
-- Mo more duplicate print of sources list files after rerun in main script.
+- No more duplicate print of sources list files after rerun in main script.
 - Improved install script.
 
 ## [1.1.0] - 8/4/2020
@@ -54,6 +63,7 @@ Script gets its own repository.
 ### Removed
 - Deboprhan and Aptitude script functions.
 
+[1.1.4]: https://github.com/sianios/system-update/tree/v1.1.4
 [1.1.3]: https://github.com/sianios/system-update/tree/v1.1.3
 [1.1.2]: https://github.com/sianios/system-update/tree/v1.1.2
 [1.1.1]: https://github.com/sianios/system-update/tree/v1.1.1

@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.1.3"
+version="1.1.4"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
@@ -84,6 +84,41 @@ vers() {
     info_ "Github page: https://github.com/sianios/system-update"
 }
 
+
+fastest-mirror() {
+    local sources="/etc/apt/sources.list"
+    local file=$(cat $sources | grep -v '#')
+    # arguments variablew
+    local args=
+
+    # Check if deb-src are enabled
+    if [[ ! -z $( echo "$file" | grep 'deb-src' ) ]]; then
+        args="$args -s"
+    fi
+
+    # Check if non-free are enabled and anable
+    if [[ ! -z $( echo "$file" | grep 'non-free' ) ]]; then
+        args="$args -n"
+    fi
+
+    read -p "Overide original sources.list? [Y/n]: "
+    case $REPLY in
+        y|Y|'')
+            if [ ! -f $sources.original ]; then
+                cp -v $sources{,.original} && info_ "Backup of $sources is made."
+            fi
+            ;;
+        *) sources="/tmp/sources.list"
+            ;;
+    esac
+
+    args="$args -o $sources"
+    info_ "netselect-apt saving in $sources"
+
+    args="netselect-apt $(lsb_release -rs) $args"
+    eval $args
+}
+
 help() {
 cat <<EOF
     Usage: update [option]
@@ -96,6 +131,7 @@ cat <<EOF
     l   List available packages upgrades
     a   Autoremove useless packages
     c   Clean localy store packages
+    f   Find the fastest mirror
     e   Edit repositorie sources list files
     h   View your apt history log
     m   Print this help menu
@@ -121,6 +157,7 @@ main() {
         a) apt autoremove --purge ;;
         c) apt clean ;;
         e) sources $2 ;;
+        f) fastest-mirror ;;
         h) less -N /var/log/apt/history.log ;;
         m) help ;;
         v) vers ;;

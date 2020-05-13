@@ -3,10 +3,10 @@ _update () {
 
     local prev=${COMP_WORDS[COMP_CWORD-1]}
 	#local prev2=${COMP_WORDS[COMP_CWORD-2]}
-    local opts="1 2 3 -s -l -a -c -e -h -m -v"
+    local opts="1 2 3 -s -l -a -c -f -e -h -m -v"
 
     case "$prev" in
-        update) COMPREPLY=( $(compgen -W '${opts}' -- $cur) )
+        update|up) COMPREPLY=( $(compgen -W '${opts}' -- $cur) )
             return 0
             ;;
         -e) COMPREPLY=( $(compgen -W '$(find /etc/apt/ -type f -iname *.list -printf "%f\n")' -- $cur) )
@@ -15,4 +15,4 @@ _update () {
     esac
 }
 
-complete -F _update update
+complete -F _update update up

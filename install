@@ -21,12 +21,21 @@ script=/usr/sbin/update
 script_comp=/etc/bash_completion.d/update_completion
 repo=https://github.com/sianios/system-update.git
 
-# Check if git is installed or install
-check_git() {
-    if [[ -z $(dpkg -l | awk '{print $2}' | grep -x git) ]]; then
-        info_ "Installing git."
+# Check for script dependencies and install
+check_dependencies() {
+    local dep=( git lsb-release netselect-apt)
+    local pkgs=
+
+    for i in ${dep[@]}; do
+        if [[ -z $(dpkg -l | awk '{print $2}' | grep -x $i) ]]; then
+            pkgs="$pkgs $i"
+        fi
+    done
+
+    if [ ! -z "$pkgs" ]; then
+        info_ "Installing dependencies."
         apt update -qq
-        apt install -y -qq git
+        apt install -y -qq $pkgs
     fi
 }
 
@@ -72,12 +81,16 @@ install_() {
     cp $src_dir/update $script || error_ "Unable to install System Update script"
     cp $src_dir/update_completion $script_comp || error_ "Unable to install System Update script bash completion file."
 
+    if [ ! -L /usr/sbin/up ]; then
+        ln -s $script /usr/sbin/up
+    fi
+
     info2_ "\nInstall completed!"
     info2_ "To enable System Update script auto completion execute:\nsource /etc/bash_completion.d/update_completion"
 }
 
 main() {
-    check_git
+    check_dependencies
     check_version
     local ver=$?
     if [ "$ver" -eq 0 ]; then
