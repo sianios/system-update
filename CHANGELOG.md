@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.5] - 4/7/2020
+### Added
+- New option (k) to remove old Linux kernels. Except the one your system
+  booted.
+### Changed
+- Installation pre checks for system and script.
+
 ## [1.1.4] - 13/5/2020
 ### Added
 - New script option to find the fastest mirror using netselect-apt.
@@ -63,6 +70,7 @@ Script gets its own repository.
 ### Removed
 - Deboprhan and Aptitude script functions.
 
+[1.1.5]: https://github.com/sianios/system-update/tree/v1.1.5
 [1.1.4]: https://github.com/sianios/system-update/tree/v1.1.4
 [1.1.3]: https://github.com/sianios/system-update/tree/v1.1.3
 [1.1.2]: https://github.com/sianios/system-update/tree/v1.1.2

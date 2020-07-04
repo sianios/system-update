@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.1.4"
+version="1.1.5"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
@@ -21,7 +21,8 @@ warning_() {
 }
 
 apt-security() {
-    local tmp_list=$(mktemp /tmp/update-XXXX)
+    #local tmp_list=$(mktemp /tmp/update-XXXX)
+    local tmp_list=/tmp/security.list.$$
     local list=/etc/apt/sources.list
 
     if [ ! -f $list ]; then
@@ -87,8 +88,13 @@ vers() {
 
 fastest-mirror() {
     local sources="/etc/apt/sources.list"
+    if [ ! -f $sources ]; then
+        error_ "$sources not found."
+        return
+    fi
+
     local file=$(cat $sources | grep -v '#')
-    # arguments variablew
+    # arguments variable
     local args=
 
     # Check if deb-src are enabled
@@ -119,6 +125,15 @@ fastest-mirror() {
     eval $args
 }
 
+purge_kernels() {
+    warning_ "Removing Linux kernel might brake your system! Proceed with care and your own risk!"
+    read -p "Proceed removing old kernels? [y/n]: "
+    case $REPLY in
+        y|Y) apt purge $(dpkg --get-selections | grep $(linux-version list | grep -v $(uname -r)) | awk '{print $1}') ;;
+        *) return ;;
+    esac 
+}
+
 help() {
 cat <<EOF
     Usage: update [option]
@@ -130,6 +145,7 @@ cat <<EOF
     s   Upgrade only security packages
     l   List available packages upgrades
     a   Autoremove useless packages
+    k   Remove old Linux kernels
     c   Clean localy store packages
     f   Find the fastest mirror
     e   Edit repositorie sources list files
@@ -155,6 +171,7 @@ main() {
         s) apt-security ;;
         l) apt list --upgradable ;;
         a) apt autoremove --purge ;;
+        k) purge_kernels ;;
         c) apt clean ;;
         e) sources $2 ;;
         f) fastest-mirror ;;

@@ -8,14 +8,9 @@ A [changelog] file is kept for changes mande in the project.
 ## Install or Update:
 Select one option from bellow and execute command in terminal to install 
 script or update to newer version. **root** is required to install.
-### Option 1: Using git
-Make sure **git** is installed first.
-```
-$ git clone https://github.com/sianios/system-update /tmp/system-update && \
-sudo bash /tmp/system-update/install
-```
-### Option 2: Using wget
+
 **wget** is installed by default in almost every distribution.
+Using a shorten URL because the original was long.
 ```
 $ wget --quiet -O install https://git.io/JfO2z && \
 sudo bash install
@@ -31,7 +26,7 @@ Open a terminal and run the command as root to enter script.
 ```
 # update
 ```
-Another option to run script is to give the option Sdirectly from
+Another option to run script is to parse the options directly from
 terminal without entering the script.
 
 ```
@@ -62,6 +57,11 @@ List packages available for upgrade after repositories update.
 **a) Autoremove**
 
 Remove no longer required package dependencies from your system.
+
+**k) Remove old Linux kernels**
+
+Remove the Linux kernels and headers from system. Excludes the one your
+system booted.
 
 **c) Clean**
 

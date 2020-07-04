@@ -15,15 +15,31 @@ info2_() {
 
 if [ $EUID -ne 0 ]; then
     error_ "Error: Only root can install..."
+    exit 1
 fi
 
 script=/usr/sbin/update
 script_comp=/etc/bash_completion.d/update_completion
 repo=https://github.com/sianios/system-update.git
 
+# Check if script is suitable for the running distribution
+check_system() {
+    if [ ! -f /etc/os-release ]; then
+        error_ "Error: /etc/os-release file not found..."
+        exit 1
+    fi
+
+    local distro=$(grep debian /etc/os-release | cut -d '=' -f2 | grep -x debian)
+
+    if [ "$distro" != "debian" ]; then
+        error_ "Error: Unable to install on $distro..."
+        exit 1
+    fi
+}
+
 # Check for script dependencies and install
 check_dependencies() {
-    local dep=( git lsb-release netselect-apt)
+    local dep=( git netselect-apt )
     local pkgs=
 
     for i in ${dep[@]}; do
@@ -33,7 +49,7 @@ check_dependencies() {
     done
 
     if [ ! -z "$pkgs" ]; then
-        info_ "Installing dependencies."
+        info_ "Info: Installing dependencies."
         apt update -qq
         apt install -y -qq $pkgs
     fi
@@ -41,42 +57,34 @@ check_dependencies() {
 
 # Check for newer version online using git
 check_version() {
-    info2_ "Checking for newer version online."
-
+    info2_ "Info: Checking for newer version online."
+    
     # Get the latest version online
-    local online_version=$(git ls-remote --tags $repo \
-    | grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
-    | tr -d "v" | tail -n1)
+    online_version=$(git ls-remote --tags $repo \
+        | grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
+        | tr -d "v" | tail -n1)
 
-    local local_version=$(grep version= $script | cut -d '"' -f2)
-
-    if [[ $local_version = $online_version ]]; then
-        info2_ "System Update script already at the latest version!"
-        return 1
-    elif [[ $local_version > $online_version ]]; then
-        error_ "Error: You attempted to install older script version!"
-        return 1
-    elif [[ $local_version < $online_version ]]; then
-        info2_ "Installing/Upgrading System Update script."
-        return 0
+    if [ -f $script ]; then
+        if [[ ! -z "$(grep $online_version $script)" ]]; then
+            info2_ "Info: You already have the latest version of System-Update script."
+            exit 1
+        fi
     fi
 }
 
 install_() {
-    local src_dir=/tmp/system-update
+    local src_dir=$(mktemp -d /tmp/system-updateXXXX)
 
-    if [ -d $src_dir ]; then
-        cd $src_dir
-        git pull -q
-    else
-        local src_dir=$(mktemp -d /tmp/system-updateXXXX)
-        info2_ "Downloading System Update script!"
-        git clone -q $repo $src_dir || error_ "Unable to clone repository."
-    fi
+    info2_ "Info: Downloading System Update script!"
+    git clone -q $repo $src_dir || error_ "Error: Unable to clone repository..."
 
     # Clean any previous versions
-    rm $script
-    rm $script_comp
+    if [ -f $script ]; then
+        rm $script
+    fi
+    if [ -f $script_comp ]; then
+        rm $script_comp
+    fi
     # Copy new files
     cp $src_dir/update $script || error_ "Unable to install System Update script"
     cp $src_dir/update_completion $script_comp || error_ "Unable to install System Update script bash completion file."
@@ -90,12 +98,10 @@ install_() {
 }
 
 main() {
+    check_system
     check_dependencies
     check_version
-    local ver=$?
-    if [ "$ver" -eq 0 ]; then
-        install_
-    fi
+    install_
 }
 
 main
