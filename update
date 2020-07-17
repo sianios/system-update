@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.1.5"
+version="1.1.5a"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
@@ -20,6 +20,7 @@ warning_() {
     echo $(tput setaf 3)$@$(tput sgr0)
 }
 
+# 
 apt-security() {
     #local tmp_list=$(mktemp /tmp/update-XXXX)
     local tmp_list=/tmp/security.list.$$
@@ -35,6 +36,7 @@ apt-security() {
     rm $tmp_list
 }
 
+# Print list of sources list files available to edit
 sources() {
     # if no filename given
     if [ -z $1 ]; then
@@ -50,6 +52,7 @@ sources() {
         echo -e "\n$i) ${lists[$i]}\n"
         read -p "Enter source list number [1]: " i
 
+        # report invalid option and exit
         case ${lists[$i]} in
             '') error_ "Error: No source list found. Must be number within range."
                 return ;;
@@ -59,7 +62,8 @@ sources() {
         # Set list name to edit
         local list="${lists[$i]}"
 
-    # in case filename is given check if file exists
+    # in case filename is given check if file exists, else report and
+    # exit
     elif [[ -f $(find /etc/apt/ -type f -iname $1) ]]; then
         local list=$1
     else
@@ -71,6 +75,7 @@ sources() {
     if [ $list == "sources.list" ]; then
         unset list
     fi
+    # edit source list command
     apt edit-sources $list
 
     read -p "Update package repositories now? [Y/n]: "
@@ -85,24 +90,25 @@ vers() {
     info_ "Github page: https://github.com/sianios/system-update"
 }
 
-
+# Find the fastest repository to download packages
 fastest-mirror() {
     local sources="/etc/apt/sources.list"
     if [ ! -f $sources ]; then
-        error_ "$sources not found."
+        error_ "Error: $sources not found."
         return
     fi
 
+    # remove comments 
     local file=$(cat $sources | grep -v '#')
     # arguments variable
-    local args=
+    local args
 
     # Check if deb-src are enabled
     if [[ ! -z $( echo "$file" | grep 'deb-src' ) ]]; then
         args="$args -s"
     fi
 
-    # Check if non-free are enabled and anable
+    # Check if non-free is enabled
     if [[ ! -z $( echo "$file" | grep 'non-free' ) ]]; then
         args="$args -n"
     fi
@@ -125,34 +131,53 @@ fastest-mirror() {
     eval $args
 }
 
+# Find and remove old kernels from system
 purge_kernels() {
-    warning_ "Removing Linux kernel might brake your system! Proceed with care and your own risk!"
+    # find which kernel the system loaded on boot
+    local loaded=$(uname -r)
+    # get list of old installed kernels
+    local kernels=($(linux-version list | grep -v $loaded | cut -d "-" -f -2))
+    # check if any kernels found and report
+    if [ -z ${kernels[0]} ]; then
+        info_ "Info: No Linux kernels found to remove."
+        return
+    fi
+
+    ### create a list of packages to be removed from system
+    local pkgs
+    local i
+    for i in "${!kernels[@]}"; do
+        pkgs="$pkgs $(dpkg --get-selections | grep "${kernels[$i]}" | awk '{print $1}')"
+    done
+
+    warning_ "Warning: Removing Linux kernel might brake your system! Proceed with care and your own risk!"
     read -p "Proceed removing old kernels? [y/n]: "
+
     case $REPLY in
-        y|Y) apt purge $(dpkg --get-selections | grep $(linux-version list | grep -v $(uname -r)) | awk '{print $1}') ;;
+        y|Y) apt purge ${pkgs[*]} ;;
         *) return ;;
     esac 
 }
 
 help() {
-cat <<EOF
+cat <<EOF | column -L -t -s "|"
     Usage: update [option]
 
-    Options:
-    1   Update local repositories
-    2   Install available packages upgrades
-    3   Full-Upgrade install packages held back
-    s   Upgrade only security packages
-    l   List available packages upgrades
-    a   Autoremove useless packages
-    k   Remove old Linux kernels
-    c   Clean localy store packages
-    f   Find the fastest mirror
-    e   Edit repositorie sources list files
-    h   View your apt history log
-    m   Print this help menu
-    v   Print version
-    q   Exit running script
+    Options:|Description:
+    1, update|Update local repositories
+    2, upgrade|Install available packages upgrades
+    3, full-upgrade|Full-Upgrade install packages held back
+    s, security|Upgrade only security packages
+    l, list|List available packages upgrades
+    a, autoremove|Autoremove useless packages
+    k, remove-kernels|Remove old Linux kernels
+    c, clear|Clean localy store packages
+    f, fastest-mirror|Find the fastest mirror
+    e, sources|Edit repositorie sources list files
+    h, history|View your apt history log
+    m, menu|Print this help menu
+    v, version|Print version
+    q, quit|Exit running script
 EOF
 }
 
@@ -165,20 +190,20 @@ welcome() {
 
 main() {
     case $1 in
-        1) apt update -qq ;;
-        2) apt upgrade -V -qq ;;
-        3) apt full-upgrade -V -qq ;;
-        s) apt-security ;;
-        l) apt list --upgradable ;;
-        a) apt autoremove --purge ;;
-        k) purge_kernels ;;
-        c) apt clean ;;
-        e) sources $2 ;;
-        f) fastest-mirror ;;
-        h) less -N /var/log/apt/history.log ;;
-        m) help ;;
-        v) vers ;;
-        q) exit 0 ;;
+        1|update) apt update -qq ;;
+        2|upgrade) apt upgrade -V -qq ;;
+        3|full-upgrade) apt full-upgrade -V -qq ;;
+        s|security) apt-security ;;
+        l|list) apt list --upgradable ;;
+        a|autoremove) apt autoremove --purge ;;
+        k|remove-kernels) purge_kernels ;;
+        c|clear) apt clean ;;
+        e|sources) sources $2 ;;
+        f|fastest-mirror) fastest-mirror ;;
+        h|history) less -N /var/log/apt/history.log ;;
+        m|menu) help ;;
+        v|version) vers ;;
+        q|quit) exit 0 ;;
         ?*) error_ "Error: $1 option not available, try again..." ;;
     esac
 }
@@ -186,7 +211,7 @@ main() {
 while true; do
 
     if [ ! -z $1 ]; then
-        main ${1//-} $2
+        main $1 $2
         break
     fi
 
