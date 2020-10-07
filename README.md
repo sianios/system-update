@@ -6,14 +6,20 @@ procedure and cleanup on Debian based distributions for lazy users.
 A [changelog] file is kept for changes made in the project.
 
 ## Install or Update:
-Select one option from bellow and execute command in terminal to install 
-script or update to newer version. **root** is required to install.
-
+### Install:
 **wget** is installed by default in almost every distribution.
 Using a shorten URL because the original was long.
 ```
-$ wget --quiet -O install https://git.io/JfO2z && \
+# wget --quiet -O install https://git.io/JfO2z && \
 sudo bash install
+```
+### Update:
+If you are using version 1.1.6 or later you can execute the command
+bellow in your terminal and upgrade to the latest script version
+available. To update earlier versions use the install command from
+above.
+```
+# update u
 ```
 ### Autocomplete:
 To enable bash autocomplete execute in terminal this command.

@@ -85,6 +85,7 @@ Script gets its own repository.
 ### Removed
 - Deboprhan and Aptitude script functions.
 
+[1.1.6]: https://github.com/sianios/system-update/tree/v1.1.6
 [1.1.5a]: https://github.com/sianios/system-update/tree/v1.1.5a
 [1.1.5]: https://github.com/sianios/system-update/tree/v1.1.5
 [1.1.4]: https://github.com/sianios/system-update/tree/v1.1.4
