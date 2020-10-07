@@ -3,7 +3,7 @@ A script developed in **bash** to semi automate the packages upgrade
 procedure and cleanup on Debian based distributions for lazy users.
 
 ## Changelog:
-A [changelog] file is kept for changes mande in the project.
+A [changelog] file is kept for changes made in the project.
 
 ## Install or Update:
 Select one option from bellow and execute command in terminal to install 
@@ -57,6 +57,10 @@ List packages available for upgrade after repositories update.
 **a) Autoremove**
 
 Remove no longer required package dependencies from your system.
+
+**u) Check script new version**
+
+Check online if latest script version is installed and update.
 
 **k) Remove old Linux kernels**
 

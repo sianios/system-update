@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.6] - 7/10/20
+### Added
+- Option (u) to check for script new versions available and update.
+### Fixed
+- Issue running properly fastest-mirror option in Debian stable.
+- Parts of all scripts reviewed and updated for better results, also
+  messages to users.
+
 ## [1.1.5a] - 17/7/2020
 ### Added
 - Full name terminal commands. Example: autoremove.

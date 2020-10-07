@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.1.5a"
+version="1.1.6"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
@@ -90,15 +90,20 @@ vers() {
     info_ "Github page: https://github.com/sianios/system-update"
 }
 
-# Find the fastest repository to download packages
+# Find the fastest repository to download packages, works only on Debian
 fastest-mirror() {
+    if [ $(lsb_release -is) != "Debian" ]; then
+        info_ "Your distro does not support this function."
+        return
+    fi
+
     local sources="/etc/apt/sources.list"
     if [ ! -f $sources ]; then
         error_ "Error: $sources not found."
         return
     fi
 
-    # remove comments 
+    # remove comments
     local file=$(cat $sources | grep -v '#')
     # arguments variable
     local args
@@ -113,12 +118,19 @@ fastest-mirror() {
         args="$args -n"
     fi
 
+    # check system release, if not testing select stable
+    local release=$(lsb_release -rs)
+    if [ "$release" != "testing" ]; then
+        unset release
+    fi
+
+
+    # ask user to overide original sources.list or not
     read -p "Overide original sources.list? [Y/n]: "
     case $REPLY in
-        y|Y|'')
-            if [ ! -f $sources.original ]; then
-                cp -v $sources{,.original} && info_ "Backup of $sources is made."
-            fi
+        y|Y|'') local sources_backup="$sources.$(date "+%Y_%m_%d_%H_%M")"
+            cp $sources $sources_backup
+            info_ "Info: $sources backup created $sources_backup"
             ;;
         *) sources="/tmp/sources.list"
             ;;
@@ -127,7 +139,7 @@ fastest-mirror() {
     args="$args -o $sources"
     info_ "netselect-apt saving in $sources"
 
-    args="netselect-apt $(lsb_release -rs) $args"
+    args="netselect-apt $release $args"
     eval $args
 }
 
@@ -159,6 +171,25 @@ purge_kernels() {
     esac 
 }
 
+# Function to check for new script version
+check_update() {
+    info_ "Info: Checking online for new version."
+    local online_version="$(git ls-remote --tags https://github.com/sianios/system-update.git \
+        | grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
+        | tr -d "v" | tail -n1)"
+
+    # If local version is different with online download and update
+    if [ "$online_version" != "$version" ]; then
+        info_ "Info: Installing new version."
+        # Download install script
+        wget --quiet -O /tmp/install https://git.io/JfO2z
+        # parce option in install script and skip version check
+        bash /tmp/install f
+    else # If the same report to user
+        info_ "Info: System Update script latest version already installed."
+    fi
+}
+
 help() {
 cat <<EOF | column -L -t -s "|"
     Usage: update [option]
@@ -171,6 +202,7 @@ cat <<EOF | column -L -t -s "|"
     l, list|List available packages upgrades
     a, autoremove|Autoremove useless packages
     k, remove-kernels|Remove old Linux kernels
+    u, check-update|Check online for new version and update
     c, clear|Clean localy store packages
     f, fastest-mirror|Find the fastest mirror
     e, sources|Edit repositorie sources list files
@@ -202,9 +234,10 @@ main() {
         f|fastest-mirror) fastest-mirror ;;
         h|history) less -N /var/log/apt/history.log ;;
         m|menu) help ;;
+        u|check-update) check_update ;;
         v|version) vers ;;
         q|quit) exit 0 ;;
-        ?*) error_ "Error: $1 option not available, try again..." ;;
+        ?*) error_ "Error: '$1' option not available. Try option 'm' for menu." ;;
     esac
 }
 

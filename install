@@ -32,16 +32,20 @@ check_system() {
     local distro=$(grep debian /etc/os-release | cut -d '=' -f2 | grep -x debian)
 
     if [ "$distro" != "debian" ]; then
-        error_ "Error: Unable to install on $distro..."
+        error_ "Error: Your disto is supported. Unable to install..."
         exit 1
     fi
 }
 
 # Check for script dependencies and install
 check_dependencies() {
-    local dep=( git netselect-apt )
-    local pkgs=
+    local dep=( git netselect-apt lsb-release )
+    local pkgs
 
+    info2_ "Updating package repositories."
+    apt update -qq
+
+    # Loop to check one by one missing package dependencies
     for i in ${dep[@]}; do
         if [[ -z $(dpkg -l | awk '{print $2}' | grep -x $i) ]]; then
             pkgs="$pkgs $i"
@@ -50,7 +54,6 @@ check_dependencies() {
 
     if [ ! -z "$pkgs" ]; then
         info_ "Info: Installing dependencies."
-        apt update -qq
         apt install -y -qq $pkgs
     fi
 }
@@ -60,7 +63,7 @@ check_version() {
     info2_ "Info: Checking for newer version online."
     
     # Get the latest version online
-    online_version=$(git ls-remote --tags $repo \
+    local online_version=$(git ls-remote --tags $repo \
         | grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
         | tr -d "v" | tail -n1)
 
@@ -68,11 +71,14 @@ check_version() {
         if [[ ! -z "$(grep $online_version $script)" ]]; then
             info2_ "Info: You already have the latest version of System-Update script."
             exit 1
+        else
+            info2_ "Info: Updating to version $online_version."
         fi
     fi
 }
 
 install_() {
+    #temp download directory
     local src_dir=$(mktemp -d /tmp/system-updateXXXX)
 
     info2_ "Info: Downloading System Update script!"
@@ -95,13 +101,23 @@ install_() {
 
     info2_ "\nInstall completed!"
     info2_ "To enable System Update script auto completion execute:\nsource /etc/bash_completion.d/update_completion"
+
+    #temp download directory cleanup
+    if [ -d $src_dir ]; then
+        rm -rf $src_dir && info_ "Temporary download directory deleted!"
+    fi
 }
 
 main() {
     check_system
     check_dependencies
-    check_version
+    # -n, string is not null
+    # ! -n, string is null
+    # If null check for new version, if not null skip
+    if [ ! -n "$1" ]; then
+        check_version
+    fi
     install_
 }
 
-main
+main $1
