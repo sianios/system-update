@@ -1,26 +1,31 @@
 #!/bin/bash
 
-#red
-error_() {
-    echo $(tput setaf 1)$@$(tput sgr0)
-}
-#green, system related
-info_() {
-    echo -e $(tput setaf 2)$@$(tput sgr0)
-}
-#purple, script related
-info2_() {
-    echo -e $(tput setaf 5)$@$(tput sgr0)
-}
-
 if [ $EUID -ne 0 ]; then
-    error_ "Error: Only root can install..."
+    echo "Error: Only root can install..."
     exit 1
 fi
 
 script=/usr/sbin/update
 script_comp=/etc/bash_completion.d/update_completion
 repo=https://github.com/sianios/system-update.git
+log=/tmp/update.install.log
+
+# Color functions
+#red
+error_() {
+    echo "$(tput setaf 1)$@$(tput sgr0)"
+    echo "$(date "+%d/%m/%Y - %H:%M"): $@" >> $log
+}
+#green, system related
+info_() {
+    echo -e "$(tput setaf 2)$@$(tput sgr0)"
+    echo "$(date "+%d/%m/%Y - %H:%M"): $@" >> $log
+}
+#purple, script related
+info2_() {
+    echo -e "$(tput setaf 5)$@$(tput sgr0)"
+    echo "$(date "+%d/%m/%Y - %H:%M"): $@" >> $log
+}
 
 # Check if script is suitable for the running distribution
 check_system() {
@@ -29,7 +34,8 @@ check_system() {
         exit 1
     fi
 
-    local distro=$(grep debian /etc/os-release | cut -d '=' -f2 | grep -x debian)
+    local distro
+    distro=$(cut -d '=' -f2 /etc/os-release | grep -x debian)
 
     if [ "$distro" != "debian" ]; then
         error_ "Error: Your disto is supported. Unable to install..."
@@ -39,22 +45,28 @@ check_system() {
 
 # Check for script dependencies and install
 check_dependencies() {
-    local dep=( git netselect-apt lsb-release )
+    local dep=( git netselect-apt lsb-release cron )
     local pkgs
 
     info2_ "Updating package repositories."
-    apt update -qq
+    #apt update -qq > /dev/null 2>&1
+    if apt update -qq > /dev/null 2>&1; then
+        info_ "Local package repositories update successfully."
+    else
+        error_ "Error: Local package repositories failed to update."
+    fi
 
     # Loop to check one by one missing package dependencies
-    for i in ${dep[@]}; do
-        if [[ -z $(dpkg -l | awk '{print $2}' | grep -x $i) ]]; then
+    for i in "${dep[@]}"; do
+        if ! dpkg -l | awk '{print $2}' | grep -xq "$i"; then
+#        if [[ -z $(dpkg -l | awk '{print $2}' | grep -x "$i") ]]; then
             pkgs="$pkgs $i"
         fi
     done
 
-    if [ ! -z "$pkgs" ]; then
+    if [ -n "$pkgs" ]; then
         info_ "Info: Installing dependencies."
-        apt install -y -qq $pkgs
+        apt install -y -qq "$pkgs"
     fi
 }
 
@@ -63,12 +75,12 @@ check_version() {
     info2_ "Info: Checking for newer version online."
     
     # Get the latest version online
-    local online_version=$(git ls-remote --tags $repo \
-        | grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
-        | tr -d "v" | tail -n1)
+    local online_version
+    online_version=$(git ls-remote --tags $repo | grep -v "{" \
+        | awk '{print $NF}' | tail -n1 | tr -d "refs/tags/v")
 
     if [ -f $script ]; then
-        if [[ ! -z "$(grep $online_version $script)" ]]; then
+        if grep -q $online_version $script; then
             info2_ "Info: You already have the latest version of System-Update script."
             exit 1
         else
@@ -77,9 +89,11 @@ check_version() {
     fi
 }
 
+# Install function, download and install
 install_() {
-    #temp download directory
-    local src_dir=$(mktemp -d /tmp/system-updateXXXX)
+    # Temp download directory
+    local src_dir
+    src_dir=$(mktemp -d /tmp/system-updateXXXX)
 
     info2_ "Info: Downloading System Update script!"
     git clone -q $repo $src_dir || error_ "Error: Unable to clone repository..."
@@ -91,9 +105,32 @@ install_() {
     if [ -f $script_comp ]; then
         rm $script_comp
     fi
+
+    # Check directories
+    if [ ! -d /var/lib/update ]; then
+        mkdir /var/lib/update
+    fi
+    if [ ! -d /etc/update ]; then
+        mkdir /etc/update
+    fi
+
     # Install new files
-    install $src_dir/update $script || error_ "Unable to install System Update script"
-    install $src_dir/update_completion $script_comp || error_ "Unable to install System Update script bash completion file."
+    install "$src_dir"/update $script || error_ "Unable to install System Update script."
+    install "$src_dir"/update_completion $script_comp || error_ "Unable to install System Update script bash completion file."
+    install "$src_dir"/cron.sh /var/lib/update/cron.sh || error_ "Unable to install System Update script library file."
+    install "$src_dir"/shared_functions /var/lib/update/shared_functions || error_ "Unable to install shared function file."
+
+    # Check if configuration file exists to install if changed take the
+    # values
+    #if [ -f /etc/update/update.conf ]; then
+    if ! diff -q "$src_dir"/update.conf /etc/update/update.conf; then
+        local token
+        token=$(grep access_token= /etc/update/update.conf)
+        install "$src_dir"/update.conf /etc/update/update.conf || error_ "Unable to install System Update script configuration file."
+        sed -i "s/access_token=/$token/g" /etc/update/update.conf
+    else
+        install "$src_dir"/update.conf /etc/update/update.conf || error_ "Unable to install System Update script configuration file."
+    fi
 
     if [ ! -L /usr/sbin/up ]; then
         ln -s $script /usr/sbin/up
@@ -103,8 +140,8 @@ install_() {
     info2_ "To enable System Update script auto completion execute:\nsource /etc/bash_completion.d/update_completion"
 
     #temp download directory cleanup
-    if [ -d $src_dir ]; then
-        rm -rf $src_dir && info_ "Temporary download directory deleted!"
+    if [ -d "$src_dir" ]; then
+        rm -rf "$src_dir" && info_ "Temporary download directory deleted!"
     fi
 }
 
@@ -114,10 +151,11 @@ main() {
     # -n, string is not null
     # ! -n, string is null
     # If null check for new version, if not null skip
-    if [ ! -n "$1" ]; then
+    if [ -z "$1" ]; then
         check_version
     fi
     install_
 }
 
-main $1
+info_ "Install log created: $log"
+main "$1"

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Logs function
+log_ () {
+    echo "$(date "+%d/%m/%Y - %H:%M"): $@" >> /var/log/update/update.log
+}
+
+# color functions
+#red
+error_() {
+    echo -e "$(tput setaf 1)"$@"$(tput sgr0)"
+    log_ "$@"
+}
+#green
+info_() {
+    echo -e "$(tput setaf 2)"$@"$(tput sgr0)"
+    log_ "$@"
+}
+#yellow
+warning_() {
+    echo -e "$(tput setaf 3)"$@"$(tput sgr0)"
+    log_ "$@"
+}

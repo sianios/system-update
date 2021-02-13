@@ -1,49 +1,52 @@
 #!/bin/bash
-version="1.1.6"
+version="1.2 beta 2/2/2021"
 
 if [ $EUID -ne 0 ]; then
     echo "Error: Root user is required to execute.."
     exit 1
 fi
 
-# color functions
-#red
-error_() {
-    echo $(tput setaf 1)$@$(tput sgr0)
-}
-#green
-info_() {
-    echo -e $(tput setaf 2)$@$(tput sgr0)
-}
-#yellow
-warning_() {
-    echo $(tput setaf 3)$@$(tput sgr0)
+#source /etc/update/update.conf
+source /var/lib/update/shared_functions
+
+# Repositories update function
+update_ () {
+    log_ "Updating local package repositories."
+    #apt update -qq > /dev/null 2>&1
+    if apt update -qq > /dev/null 2>&1; then
+        info_ "Local package repositories updated successfully."
+    else
+        error_ "Error: Local package repositories failed to update."
+    fi
 }
 
-# 
+# Update only security packages
 apt-security() {
+    log_ "Upgrading only security packages."
     #local tmp_list=$(mktemp /tmp/update-XXXX)
     local tmp_list=/tmp/security.list.$$
     local list=/etc/apt/sources.list
 
     if [ ! -f $list ]; then
+        error_ "Error: No sources.list found."
         return
     fi
 
-    grep "security" $list | grep -v "src" | cut -d "#" -f 2 > $tmp_list
+    grep "security" $list | grep -v "src" | cut -d "#" -f 2 > $tmp_list \
+        && log_ "Security sources list created."
 
-    apt upgrade -V -o Dir::Etc::SourceList=$tmp_list
-    rm $tmp_list
+    apt upgrade -V -o Dir::Etc::SourceLst=$tmp_list
+    rm $tmp_list && log_ "Security sources list removed."
 }
 
 # Print list of sources list files available to edit
 sources() {
     # if no filename given
-    if [ -z $1 ]; then
+    if [ -z "$1" ]; then
         # print list of sources list files
-        local i=1
-        for f in $(find /etc/apt/ -type f -iname *.list -printf "%f\n"); do
-            local lists[$i]="$f"
+        local local i=1
+        for f in $(find /etc/apt/ -type f -iname "*.list" -printf "%f\n"); do
+            lists[$i]="$f"
             echo "$i) $f"
             ((i++))
         done
@@ -62,38 +65,41 @@ sources() {
         # Set list name to edit
         local list="${lists[$i]}"
 
-    # in case filename is given check if file exists, else report and
-    # exit
-    elif [[ -f $(find /etc/apt/ -type f -iname $1) ]]; then
+    # in case filename is given check if file exists, else report and exit
+    elif [[ -f $(find /etc/apt/ -type f -iname "$1") ]]; then
         local list=$1
     else
         error_ "Error: $1 file not found, try again..."
         return
     fi
 
+    log_ "Editing sources file: $list"
+
     # apt tries to create new file in case of sources.list
-    if [ $list == "sources.list" ]; then
+    if [ "$list" == "sources.list" ]; then
         unset list
     fi
-    # edit source list command
-    apt edit-sources $list
 
-    read -p "Update package repositories now? [Y/n]: "
+    # edit source list command
+    apt edit-sources ${list}
+
+    # Ask to update package repositories
+    read -p "Update package repositories no? [Y/n]: "
     case $REPLY in
-        y|Y|'') apt update -qq ;;
-        *) warning_ "Warning: Repositories not updated." ;;
+        y|Y|'') update_ ;;
+        *) warning_ "Warning: Package repositories not updated after sources list update." ;;
     esac
 }
 
 vers() {
-    info_ "System-Update\nVersion: "$version
+    info_ "System-Update\nVersion: $version"
     info_ "Github page: https://github.com/sianios/system-update"
 }
 
 # Find the fastest repository to download packages, works only on Debian
 fastest-mirror() {
-    if [ $(lsb_release -is) != "Debian" ]; then
-        info_ "Your distro does not support this function."
+    if [ "$(lsb_release -is)" != "Debian" ]; then
+        error_ "Your distro does not support this function."
         return
     fi
 
@@ -104,22 +110,24 @@ fastest-mirror() {
     fi
 
     # remove comments
-    local file=$(cat $sources | grep -v '#')
+    local file
+    file=$(grep -v '#' $sources)
     # arguments variable
     local args
 
     # Check if deb-src are enabled
-    if [[ ! -z $( echo "$file" | grep 'deb-src' ) ]]; then
+    if grep -q 'deb-src' "$file"; then
         args="$args -s"
     fi
 
     # Check if non-free is enabled
-    if [[ ! -z $( echo "$file" | grep 'non-free' ) ]]; then
+    if ! grep -q 'non-free' "$file"; then
         args="$args -n"
     fi
 
     # check system release, if not testing select stable
-    local release=$(lsb_release -rs)
+    local release
+    release=$(lsb_release -rs)
     if [ "$release" != "testing" ]; then
         unset release
     fi
@@ -128,8 +136,9 @@ fastest-mirror() {
     # ask user to overide original sources.list or not
     read -p "Overide original sources.list? [Y/n]: "
     case $REPLY in
-        y|Y|'') local sources_backup="$sources.$(date "+%Y_%m_%d_%H_%M")"
-            cp $sources $sources_backup
+        y|Y|'') local sources_backup
+            sources_backup="$sources.$(date "+%Y_%m_%d_%H_%M")"
+            cp $sources "$sources_backup"
             info_ "Info: $sources backup created $sources_backup"
             ;;
         *) sources="/tmp/sources.list"
@@ -140,7 +149,7 @@ fastest-mirror() {
     info_ "netselect-apt saving in $sources"
 
     args="netselect-apt $release $args"
-    eval $args
+    eval "$args"
 }
 
 # Find and remove old kernels from system
@@ -162,28 +171,65 @@ purge_kernels() {
         pkgs="$pkgs $(dpkg --get-selections | grep "${kernels[$i]}" | awk '{print $1}')"
     done
 
-    warning_ "Warning: Removing Linux kernel might brake your system! Proceed with care and your own risk!"
+    warning_ "Warning: Removing Linux kernel packages might brake your system! Proceed with care and your own risk!"
     read -p "Proceed removing old kernels? [y/n]: "
 
     case $REPLY in
-        y|Y) apt purge ${pkgs[*]} ;;
-        *) return ;;
-    esac 
+        y|Y) apt purge ${pkgs[*]}
+            log_ "Packages removed: ${pkgs[*]}" ;;
+        *) info_ "Removing kernel packages canceled."
+            return ;;
+    esac
+}
+
+# Enable and disable auto package repositories update using cron
+auto_repo() {
+    # cron file
+    local cronf=/etc/crontab
+
+    # If found in cron file auto update is enabled
+    #grep cron.sh $cronf > /dev/null 2>&1
+    grep -q cron.sh $cronf
+
+    if [ $? == 0 ]; then
+        info_ "Auto package repositories update is enabled."
+        read -p "Disable auto repositories update? [Y/n]: "
+        case $REPLY in
+            y|Y|"") sed -i '/cron.sh/d' $cronf
+                /etc/init.d/cron restart > /dev/null 2>&1 && log_ "Service Restarted: cron"
+                info_ "Auto package repositories update disabled." ;;
+            *) info_ "Auto package repositories update not disabled." ;;
+        esac
+    else
+        info_ "Auto package repositories update is disabled."
+        read -p "Enable auto repositories update? [Y/n]: "
+        case $REPLY in
+            y|Y|"") read -p "Auto package repositories update interval, input examples here: https://crontab.guru [Default: 2 hours]: "
+                if [ -n $REPLY ]; then
+                    REPLY="* */2 * * *"
+                fi
+                #echo "@daily sianios /var/lib/update/cron.sh > /dev/null 2>&1" >> $cronf
+                echo "$REPLY root /var/lib/update/cron.sh > /dev/null 2>&1" >> $cronf
+                /etc/init.d/cron restart > /dev/null 2>&1 && log_ "Service Restarted: cron"
+                info_ "Auto package repositories update enabled." ;;
+            *) info_ "Auto package repositories update not enabled." ;;
+        esac
+    fi
 }
 
 # Function to check for new script version
 check_update() {
-    info_ "Info: Checking online for new version."
-    local online_version="$(git ls-remote --tags https://github.com/sianios/system-update.git \
-        | grep -v "{" | awk '{print $NF}' | cut -d "/" -f3 \
-        | tr -d "v" | tail -n1)"
+    info_ "Info: Checking online for new script version."
+    local online_version=$(git ls-remote --tags https://github.com/sianios/system-update.git \
+        | grep -v "{" | awk '{print $NF}' | tail -n1 | tr -d "refs/tags/v")
 
     # If local version is different with online download and update
     if [ "$online_version" != "$version" ]; then
-        info_ "Info: Installing new version."
+        info_ "Info: New version available. Downloading now."
         # Download install script
-        wget --quiet -O /tmp/install https://git.io/JfO2z
+        wget --quiet -O /tmp/install https://git.io/JfO2z && info_ "Info: Download complete."
         # parce option in install script and skip version check
+        info_ "Info: Starting upgrade."
         bash /tmp/install f
     else # If the same report to user
         info_ "Info: System Update script latest version already installed."
@@ -205,7 +251,8 @@ cat <<EOF | column -L -t -s "|"
     u, check-update|Check online for new version and update
     c, clear|Clean localy store packages
     f, fastest-mirror|Find the fastest mirror
-    e, sources|Edit repositorie sources list files
+    e, sources|Edit repositories sources list files
+    r, auto-update|Enable or disable auto package repositories update
     h, history|View your apt history log
     m, menu|Print this help menu
     v, version|Print version
@@ -222,16 +269,17 @@ welcome() {
 
 main() {
     case $1 in
-        1|update) apt update -qq ;;
-        2|upgrade) apt upgrade -V -qq ;;
-        3|full-upgrade) apt full-upgrade -V -qq ;;
+        1|update) update_ ;;
+        2|upgrade) log_ "Packages upgrade." && apt upgrade -V -qq ;;
+        3|full-upgrade) log_ "Full packages upgrade." && apt full-upgrade -V -qq ;;
         s|security) apt-security ;;
-        l|list) apt list --upgradable ;;
-        a|autoremove) apt autoremove --purge ;;
+        l|list) log_ "Listing available packages upgrade." && apt list --upgradable ;;
+        a|autoremove) log_ "Packages autoremove." && apt autoremove --purge ;;
         k|remove-kernels) purge_kernels ;;
-        c|clear) apt clean ;;
+        c|clear) log_ "Cleaning localy stored packages." && apt clean ;;
         e|sources) sources $2 ;;
         f|fastest-mirror) fastest-mirror ;;
+        r|auto-update) auto_repo ;;
         h|history) less -N /var/log/apt/history.log ;;
         m|menu) help ;;
         u|check-update) check_update ;;

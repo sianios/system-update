@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.2 beta] - 2/2/2021
+### Added
+- New option (r) for auto update package repositories allowing user to
+  choose when to update using cron and get notified by Pushbullet.
+  Auto update is disabled by default.
+- Configuration file in /etc/update/update.conf
+- Shared functions file created.
+- Logs added.
+### Changed
+- Repositories update function has its own function now.
+### Fixed
+- Various fixes in all project.
+
 ## [1.1.6] - 7/10/20
 ### Added
 - Option (u) to check for script new versions available and update.
@@ -85,6 +98,7 @@ Script gets its own repository.
 ### Removed
 - Deboprhan and Aptitude script functions.
 
+[1.2 beta]: https://github.com/sianios/system-update/tree/v1.2_beta
 [1.1.6]: https://github.com/sianios/system-update/tree/v1.1.6
 [1.1.5a]: https://github.com/sianios/system-update/tree/v1.1.5a
 [1.1.5]: https://github.com/sianios/system-update/tree/v1.1.5
